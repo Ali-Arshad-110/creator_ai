@@ -88,3 +88,74 @@ class ErrorResponse(BaseModel):
     """Standard error response."""
     detail: str
     error_code: str | None = None
+
+
+# ── Profile Analytics Schemas ─────────────────────────────────────
+
+
+class ProfileAnalyzeRequest(BaseModel):
+    """POST /profile/analyze request body."""
+    username: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=r"^@?[a-zA-Z0-9_\.]+$",
+        description="Instagram username to search and analyze."
+    )
+
+    @field_validator("username")
+    @classmethod
+    def clean_username(cls, v: str) -> str:
+        v = v.strip().replace("@", "").lower()
+        if not v:
+            raise ValueError("Username cannot be empty.")
+        return v
+
+
+class ProfileMetricsResponse(BaseModel):
+    """Nested metrics fields inside ProfileAnalysisResponse."""
+    engagement_rate: float
+    average_likes: float
+    average_comments: float
+    posting_frequency: float
+    audience_quality_score: int
+    growth_estimation: float
+    is_estimated: bool
+    strengths: list[str]
+    weaknesses: list[str]
+
+
+class ProfileAnalysisResponse(BaseModel):
+    """Full detail of profile analysis results."""
+    id: UUID
+    username: str
+    full_name: str | None = None
+    avatar_url: str | None = None
+    followers_count: int
+    following_count: int
+    posts_count: int
+    biography: str | None = None
+    external_url: str | None = None
+    metrics: ProfileMetricsResponse
+    updated_at: datetime
+
+
+class ProfileAnalysisListItem(BaseModel):
+    """Simplified list item for profile history searches."""
+    id: UUID
+    username: str
+    full_name: str | None = None
+    avatar_url: str | None = None
+    followers_count: int
+    engagement_rate: float
+    created_at: datetime
+
+
+class ProfileAnalysisListResponse(BaseModel):
+    """Paginated search history for profile audits."""
+    items: list[ProfileAnalysisListItem]
+    total: int
+    page: int
+    limit: int
+    has_more: bool
+

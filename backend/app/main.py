@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.middleware.rate_limiter import RateLimitMiddleware
-from app.routes import analysis, health, history
+from app.routes import analysis, health, history, profile
 from app.utils.logger import setup_logger
 
 
@@ -58,6 +58,11 @@ def create_app() -> FastAPI:
         history.router,
         prefix="/api/v1",
         tags=["History"],
+    )
+    app.include_router(
+        profile.router,
+        prefix="/api/v1",
+        tags=["Profile"],
     )
 
     return app

@@ -182,3 +182,146 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Failed to delete analysis {analysis_id}: {e}")
             return False
+
+    async def get_profile_by_username(self, username: str) -> dict | None:
+        """Fetch cached profile details by username (case-insensitive lookup)."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("profiles")
+                    .select("*")
+                    .ilike("username", username)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return result.data[0] if result.data else None
+        except Exception as e:
+            logger.error(f"Failed to fetch profile {username}: {e}")
+            return None
+
+    async def save_profile(self, profile_data: dict) -> dict:
+        """Create or update a profile record in DB."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("profiles")
+                    .upsert(profile_data, on_conflict="username")
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return result.data[0] if result.data else {}
+        except Exception as e:
+            logger.error(f"Failed to save profile: {e}")
+            raise
+
+    async def save_profile_snapshot(self, snapshot_data: dict) -> dict:
+        """Log a new historical snapshot point."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("profile_snapshots")
+                    .insert(snapshot_data)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return result.data[0] if result.data else {}
+        except Exception as e:
+            logger.error(f"Failed to save profile snapshot: {e}")
+            return {}
+
+    async def get_latest_snapshots(self, profile_id: str, limit: int = 30) -> list[dict]:
+        """Fetch historical snapshots for trend graphs."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("profile_snapshots")
+                    .select("*")
+                    .eq("profile_id", profile_id)
+                    .order("created_at", desc=True)
+                    .limit(limit)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return result.data if result.data else []
+        except Exception as e:
+            logger.error(f"Failed to fetch snapshots for {profile_id}: {e}")
+            return []
+
+    async def save_analytics_report(self, report_data: dict) -> dict:
+        """Save a calculated analytics report."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("analytics_reports")
+                    .insert(report_data)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return result.data[0] if result.data else {}
+        except Exception as e:
+            logger.error(f"Failed to save analytics report: {e}")
+            raise
+
+    async def get_latest_analytics_report(self, profile_id: str) -> dict | None:
+        """Fetch the most recent report for a profile."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("analytics_reports")
+                    .select("*")
+                    .eq("profile_id", profile_id)
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return result.data[0] if result.data else None
+        except Exception as e:
+            logger.error(f"Failed to fetch latest report for {profile_id}: {e}")
+            return None
+
+    async def get_reports_history(
+        self,
+        user_id: str,
+        page: int = 1,
+        limit: int = 20,
+    ) -> tuple[list[dict], int]:
+        """Fetch reports requested by a specific user with profile metadata joining."""
+        try:
+            start = (page - 1) * limit
+            end = start + limit - 1
+
+            def _execute():
+                return (
+                    self.client.table("analytics_reports")
+                    .select("*, profiles(username, full_name, avatar_url)", count="exact")
+                    .eq("user_id", user_id)
+                    .order("created_at", desc=True)
+                    .range(start, end)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            items = result.data if result.data else []
+            total = result.count if result.count is not None else len(items)
+            return items, total
+        except Exception as e:
+            logger.error(f"Failed to fetch reports history: {e}")
+            return [], 0
+
+    async def delete_analytics_report(self, report_id: str, user_id: str) -> bool:
+        """Hard delete an analytics report query history item."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("analytics_reports")
+                    .delete()
+                    .eq("id", report_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return len(result.data) > 0 if result.data else False
+        except Exception as e:
+            logger.error(f"Failed to delete report {report_id}: {e}")
+            return False
+

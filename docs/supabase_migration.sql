@@ -111,3 +111,71 @@ CREATE POLICY "Users can update own analyses"
 -- The backend uses the service_role key which bypasses RLS.
 -- This is intentional: the backend handles auth via JWT verification
 -- and applies its own authorization logic.
+
+
+-- ══════════════════════════════════════════════════
+-- PROFILES & PROFILE ANALYTICS TABLES
+-- ══════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username VARCHAR(100) UNIQUE NOT NULL,
+  full_name VARCHAR(255),
+  avatar_url TEXT,
+  biography TEXT,
+  external_url TEXT,
+  followers_count INTEGER NOT NULL DEFAULT 0,
+  following_count INTEGER NOT NULL DEFAULT 0,
+  posts_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.profile_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  followers_count INTEGER NOT NULL,
+  following_count INTEGER NOT NULL,
+  posts_count INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.analytics_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  engagement_rate NUMERIC(5,2) NOT NULL,
+  average_likes NUMERIC(12,2) NOT NULL,
+  average_comments NUMERIC(12,2) NOT NULL,
+  posting_frequency NUMERIC(5,2) NOT NULL,
+  audience_quality_score INTEGER NOT NULL,
+  growth_estimation NUMERIC(5,2) NOT NULL,
+  is_estimated BOOLEAN DEFAULT FALSE,
+  strengths TEXT[],
+  weaknesses TEXT[],
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_snapshots_profile ON public.profile_snapshots(profile_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_profile ON public.analytics_reports(profile_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_user ON public.analytics_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles(username);
+
+-- RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profile_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.analytics_reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can select profiles"
+  ON public.profiles FOR SELECT USING (true);
+
+CREATE POLICY "Anyone can select profile_snapshots"
+  ON public.profile_snapshots FOR SELECT USING (true);
+
+CREATE POLICY "Users can manage own reports"
+  ON public.analytics_reports FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own reports"
+  ON public.analytics_reports FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
