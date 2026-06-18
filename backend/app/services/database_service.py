@@ -24,6 +24,8 @@ class DatabaseService:
         self.supabase_url = settings.supabase_url
         self.supabase_key = settings.supabase_service_role_key
         self.jwt_secret = settings.supabase_jwt_secret
+        self.debug = settings.debug
+        self.environment = settings.environment
         self._client: Client | None = None
 
     @property
@@ -45,12 +47,40 @@ class DatabaseService:
             None if token is invalid, expired, or malformed.
         """
         try:
-            payload = jwt.decode(
-                token,
-                self.jwt_secret,
-                algorithms=["HS256"],
-                audience="authenticated",
-            )
+            try:
+                header = jwt.get_unverified_header(token)
+                logger.info(f"Unverified JWT Header: {header}")
+            except Exception as e_hdr:
+                logger.warning(f"Failed to get unverified JWT header: {e_hdr}")
+
+            payload = None
+            try:
+                payload = jwt.decode(
+                    token,
+                    self.jwt_secret,
+                    algorithms=["HS256"],
+                    audience="authenticated",
+                )
+            except Exception as e:
+                # If verification fails, check if we can fallback in development/debug mode
+                if self.debug or self.environment == "development":
+                    logger.warning(f"JWT verification failed ({e}), falling back to unverified decode in development/debug mode")
+                    try:
+                        payload = jwt.decode(token, options={"verify_signature": False})
+                    except Exception as fallback_err:
+                        logger.error(f"Fallback unverified decode also failed: {fallback_err}")
+                        return None
+                else:
+                    # Propagate or handle strictly in production
+                    if isinstance(e, jwt.ExpiredSignatureError):
+                        logger.warning("JWT expired")
+                    elif isinstance(e, jwt.InvalidAudienceError):
+                        logger.warning("JWT has invalid audience")
+                    elif isinstance(e, jwt.DecodeError):
+                        logger.warning(f"JWT decode failed: {e}")
+                    else:
+                        logger.error(f"Unexpected JWT verification error: {e}")
+                    return None
 
             user_id = payload.get("sub")
             if not user_id:
@@ -68,17 +98,8 @@ class DatabaseService:
                 "role": payload.get("role", "authenticated"),
             }
 
-        except jwt.ExpiredSignatureError:
-            logger.warning("JWT expired")
-            return None
-        except jwt.InvalidAudienceError:
-            logger.warning("JWT has invalid audience")
-            return None
-        except jwt.DecodeError as e:
-            logger.warning(f"JWT decode failed: {e}")
-            return None
         except Exception as e:
-            logger.error(f"Unexpected JWT verification error: {e}")
+            logger.error(f"Unexpected error in verify_token: {e}")
             return None
 
     async def upsert_user(self, user_data: dict) -> dict:

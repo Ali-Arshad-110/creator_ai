@@ -21,7 +21,7 @@ class ProfileService:
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) "
             "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1"
         )
-        self.loader = instaloader.Instaloader(user_agent=self.user_agent)
+        self.loader = instaloader.Instaloader(user_agent=self.user_agent, max_connection_attempts=1)
 
     async def fetch_profile(self, username: str) -> Dict[str, Any]:
         """
@@ -33,10 +33,16 @@ class ProfileService:
         # 1. Attempt live scraping (runs in a separate thread to prevent blocking event loop)
         try:
             logger.info(f"Attempting live Instagram scrape for: {clean_username}")
-            data = await asyncio.to_thread(self._scrape_live, clean_username)
+            # Strict 3-second timeout on live connections to avoid rate limit hangs
+            data = await asyncio.wait_for(
+                asyncio.to_thread(self._scrape_live, clean_username),
+                timeout=3.0
+            )
             if data:
                 logger.info(f"Live scrape succeeded for: {clean_username}")
                 return data
+        except asyncio.TimeoutError:
+            logger.warning(f"Live Instagram scrape timed out (3.0s limit) for {clean_username}")
         except Exception as e:
             logger.warning(f"Live Instagram scrape failed/rate-limited for {clean_username}: {e}")
 

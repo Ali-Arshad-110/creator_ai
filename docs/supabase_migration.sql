@@ -80,26 +80,31 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analyses ENABLE ROW LEVEL SECURITY;
 
 -- Users can only read their own profile
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 CREATE POLICY "Users can view own profile"
   ON public.users FOR SELECT
   USING (auth.uid() = id);
 
 -- Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 CREATE POLICY "Users can update own profile"
   ON public.users FOR UPDATE
   USING (auth.uid() = id);
 
 -- Users can only see their own analyses
+DROP POLICY IF EXISTS "Users can view own analyses" ON public.analyses;
 CREATE POLICY "Users can view own analyses"
   ON public.analyses FOR SELECT
   USING (auth.uid() = user_id AND is_deleted = false);
 
 -- Users can insert their own analyses
+DROP POLICY IF EXISTS "Users can create own analyses" ON public.analyses;
 CREATE POLICY "Users can create own analyses"
   ON public.analyses FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Users can soft-delete their own analyses
+DROP POLICY IF EXISTS "Users can update own analyses" ON public.analyses;
 CREATE POLICY "Users can update own analyses"
   ON public.analyses FOR UPDATE
   USING (auth.uid() = user_id);
@@ -166,16 +171,20 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profile_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_reports ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can select profiles" ON public.profiles;
 CREATE POLICY "Anyone can select profiles"
   ON public.profiles FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Anyone can select profile_snapshots" ON public.profile_snapshots;
 CREATE POLICY "Anyone can select profile_snapshots"
   ON public.profile_snapshots FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can manage own reports" ON public.analytics_reports;
 CREATE POLICY "Users can manage own reports"
   ON public.analytics_reports FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create own reports" ON public.analytics_reports;
 CREATE POLICY "Users can create own reports"
   ON public.analytics_reports FOR INSERT
   WITH CHECK (auth.uid() = user_id);
