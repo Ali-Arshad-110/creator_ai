@@ -1,0 +1,18 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Stylistic/best practice rules
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_final_fields: true
+    avoid_print: true
+    use_key_in_widget_constructors: true
+    always_declare_return_types: true
+    cancel_subscriptions: true
+    close_sinks: true
+    await_only_futures: true
+    avoid_empty_else: true
+    empty_statements: true
+    no_duplicate_case_values: true
+    valid_regexps: true

@@ -1,0 +1,53 @@
+name: creator_ai
+description: "AI-powered mobile application for Instagram creators to improve content performance."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.3
+
+  # Routing
+  go_router: ^14.2.0
+
+  # Supabase (Auth & Database)
+  supabase_flutter: ^2.6.0
+
+  # HTTP Client
+  http: ^1.2.1
+
+  # Common Utilities
+  shared_preferences: ^2.2.3
+  uuid: ^4.3.3
+  intl: ^0.19.0
+  flutter_svg: ^2.0.10+1
+
+  # UI/UX & Styling
+  google_fonts: ^6.2.1
+  flutter_spinkit: ^5.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Code Generation
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.3.9
+
+  # Linting
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  # Define custom assets/fonts here if needed for MVP
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
