@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,6 +18,7 @@ class ProfileSearchScreen extends ConsumerStatefulWidget {
 class _ProfileSearchScreenState extends ConsumerState<ProfileSearchScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -31,7 +33,15 @@ class _ProfileSearchScreenState extends ConsumerState<ProfileSearchScreen> with 
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(profileProvider.notifier).fetchSuggestions(query);
+    });
   }
 
   void _triggerSearch() async {
@@ -47,6 +57,7 @@ class _ProfileSearchScreenState extends ConsumerState<ProfileSearchScreen> with 
     }
 
     FocusScope.of(context).unfocus();
+    ref.read(profileProvider.notifier).clearSuggestions();
     await ref.read(profileProvider.notifier).analyzeProfile(query);
 
     if (mounted) {
@@ -99,16 +110,18 @@ class _ProfileSearchScreenState extends ConsumerState<ProfileSearchScreen> with 
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    suffixIcon: !isDemo
+                    suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded, color: Colors.grey),
                             onPressed: () {
                               _searchController.clear();
                               ref.read(profileProvider.notifier).clearActiveProfile();
+                              ref.read(profileProvider.notifier).clearSuggestions();
                             },
                           )
                         : null,
                   ),
+                  onChanged: _onSearchChanged,
                   onFieldSubmitted: (_) => _triggerSearch(),
                 ),
               ),
@@ -135,6 +148,75 @@ class _ProfileSearchScreenState extends ConsumerState<ProfileSearchScreen> with 
               ),
             ],
           ),
+
+          // Autocomplete Suggestions List Overlay
+          if (state.suggestions.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 240),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.darkSurfaceColor : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  )
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: state.suggestions.length,
+                  separatorBuilder: (_, __) => Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey[200]),
+                  itemBuilder: (context, index) {
+                    final suggestion = state.suggestions[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundImage: suggestion.avatarUrl != null
+                            ? NetworkImage(suggestion.avatarUrl!)
+                            : null,
+                        child: suggestion.avatarUrl == null
+                            ? Text(
+                                suggestion.username.substring(0, 1).toUpperCase(),
+                                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                              )
+                            : null,
+                      ),
+                      title: Text(
+                        '@${suggestion.username}',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      subtitle: suggestion.fullName != null
+                          ? Text(
+                              suggestion.fullName!,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: isDark ? AppTheme.darkMutedTextColor : AppTheme.lightMutedTextColor,
+                              ),
+                            )
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _searchController.text = suggestion.username;
+                        });
+                        ref.read(profileProvider.notifier).clearSuggestions();
+                        _triggerSearch();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
 
           // Custom Segment Tab Bar
@@ -282,7 +364,9 @@ class _ProfileSearchScreenState extends ConsumerState<ProfileSearchScreen> with 
                                 ),
                                 trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
                                 onTap: () async {
-                                  _searchController.text = item.username;
+                                  setState(() {
+                                    _searchController.text = item.username;
+                                  });
                                   // Analyze/load cached profile details
                                   await ref.read(profileProvider.notifier).analyzeProfile(item.username);
                                   // Switch to dashboard tab

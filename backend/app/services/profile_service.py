@@ -95,27 +95,50 @@ class ProfileService:
         rng = random.Random(seed_int)
 
         # Preset stats for common accounts to make testing feel realistic
-        if username == "mrbeast":
+        avg_likes = None
+        avg_comments = None
+        engagement_rate = None
+
+        if username.lower() == "dhruvrathee":
+            followers = 18161353
+            following = 424
+            posts = 923
+            full_name = "Dhruv Rathee"
+            bio = "YouTube Educator 25M+ subs\nCo-founder at @aifiesta.ai\nJoin AI Masterclass 👇"
+            url = "https://academy.dhruvrathee.com/aimasterclass"
+            engagement_rate = 0.1341
+            avg_likes = 2411455
+            avg_comments = 23700
+        elif username.lower() == "mrbeast":
             followers = 87235457
             following = 970
             posts = 486
             full_name = "MrBeast"
             bio = "Watch my latest video! 👇"
             url = "https://youtube.com/mrbeast"
-        elif username == "cristiano":
+            engagement_rate = 0.0425
+            avg_likes = 3707506
+            avg_comments = 45000
+        elif username.lower() == "cristiano":
             followers = 628000000
             following = 582
             posts = 3680
             full_name = "Cristiano Ronaldo"
             bio = "SIUUU! Join my journey."
             url = "https://cr7.com"
-        elif username == "leomessi":
+            engagement_rate = 0.0185
+            avg_likes = 11618000
+            avg_comments = 84000
+        elif username.lower() == "leomessi":
             followers = 502000000
             following = 310
             posts = 1120
             full_name = "Leo Messi"
             bio = "Bienvenidos a la cuenta oficial de Instagram."
             url = "https://leomessi.com"
+            engagement_rate = 0.0210
+            avg_likes = 10542000
+            avg_comments = 68000
         else:
             # Generate random but cohesive stats based on username hash
             follower_tier = rng.choice([1000, 10000, 100000, 1000000])
@@ -131,11 +154,11 @@ class ProfileService:
             ])
             url = f"https://linktr.ee/{username}"
 
-        # Generate realistic engagement counts for last 12 posts
-        # Typical engagement rates: 0.5% to 5%
-        engagement_rate = rng.uniform(0.01, 0.05)
-        avg_likes = int(followers * engagement_rate * rng.uniform(0.7, 0.95))
-        avg_comments = int(avg_likes * rng.uniform(0.015, 0.04))
+        # Populate engagement metrics if not preset
+        if engagement_rate is None:
+            engagement_rate = rng.uniform(0.01, 0.05)
+            avg_likes = int(followers * engagement_rate * rng.uniform(0.7, 0.95))
+            avg_comments = int(avg_likes * rng.uniform(0.015, 0.04))
 
         # Build 12 posts spaced out over the last month
         recent_posts = []

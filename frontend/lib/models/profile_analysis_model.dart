@@ -111,3 +111,23 @@ class ProfileHistoryItem {
     );
   }
 }
+
+class ProfileSearchSuggestion {
+  final String username;
+  final String? fullName;
+  final String? avatarUrl;
+
+  ProfileSearchSuggestion({
+    required this.username,
+    required this.fullName,
+    required this.avatarUrl,
+  });
+
+  factory ProfileSearchSuggestion.fromJson(Map<String, dynamic> json) {
+    return ProfileSearchSuggestion(
+      username: json['username'] as String,
+      fullName: json['full_name'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+    );
+  }
+}

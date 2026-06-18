@@ -10,6 +10,8 @@ from app.models.schemas import (
     ProfileMetricsResponse,
     ProfileAnalysisListResponse,
     ProfileAnalysisListItem,
+    ProfileSearchSuggestion,
+    ProfileSearchSuggestionList,
 )
 from app.services.database_service import DatabaseService
 from app.services.profile_service import ProfileService
@@ -214,3 +216,67 @@ async def delete_profile_history(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Analytics report not found or access denied.",
         )
+
+
+@router.get(
+    "/profile/search",
+    response_model=ProfileSearchSuggestionList,
+    summary="Search suggestions for Instagram profiles",
+)
+async def search_profile_suggestions(
+    query: str = Query(..., min_length=1),
+    user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    db = DatabaseService(settings)
+    
+    # 1. Search cached profiles in database
+    db_results = await db.search_profiles(query)
+    
+    # 2. Hardcoded list of popular creators to merge
+    popular = [
+        {"username": "dhruvrathee", "full_name": "Dhruv Rathee", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=dhruvrathee"},
+        {"username": "mrbeast", "full_name": "MrBeast", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=mrbeast"},
+        {"username": "cristiano", "full_name": "Cristiano Ronaldo", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=cristiano"},
+        {"username": "leomessi", "full_name": "Leo Messi", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=leomessi"},
+        {"username": "taylorswift", "full_name": "Taylor Swift", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=taylorswift"},
+        {"username": "selenagomez", "full_name": "Selena Gomez", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=selenagomez"},
+        {"username": "kyliejenner", "full_name": "Kylie Jenner", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=kyliejenner"},
+        {"username": "therock", "full_name": "Dwayne Johnson", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=therock"},
+        {"username": "arianagrande", "full_name": "Ariana Grande", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=arianagrande"},
+        {"username": "kimkardashian", "full_name": "Kim Kardashian", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=kimkardashian"},
+        {"username": "beyonce", "full_name": "Beyoncé", "avatar_url": "https://api.dicebear.com/7.x/bottts/svg?seed=beyonce"},
+    ]
+    
+    # Filter popular list matching prefix query
+    normalized_query = query.lower().strip().replace("@", "")
+    filtered_popular = [
+        item for item in popular
+        if normalized_query in item["username"] or (item["full_name"] and normalized_query in item["full_name"].lower())
+    ]
+    
+    # Merge results and avoid duplicates based on username
+    seen_usernames = set()
+    merged = []
+    
+    for item in db_results:
+        uname = item["username"].lower()
+        if uname not in seen_usernames:
+            seen_usernames.add(uname)
+            merged.append(ProfileSearchSuggestion(
+                username=item["username"],
+                full_name=item.get("full_name"),
+                avatar_url=item.get("avatar_url")
+            ))
+            
+    for item in filtered_popular:
+        uname = item["username"].lower()
+        if uname not in seen_usernames:
+            seen_usernames.add(uname)
+            merged.append(ProfileSearchSuggestion(
+                username=item["username"],
+                full_name=item["full_name"],
+                avatar_url=item["avatar_url"]
+            ))
+            
+    return ProfileSearchSuggestionList(suggestions=merged[:15])

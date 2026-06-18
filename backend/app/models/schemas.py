@@ -159,3 +159,15 @@ class ProfileAnalysisListResponse(BaseModel):
     limit: int
     has_more: bool
 
+
+class ProfileSearchSuggestion(BaseModel):
+    """Instagram search autocomplete suggestion."""
+    username: str
+    full_name: str | None = None
+    avatar_url: str | None = None
+
+
+class ProfileSearchSuggestionList(BaseModel):
+    """List of suggestions."""
+    suggestions: list[ProfileSearchSuggestion]
+

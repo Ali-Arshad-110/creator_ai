@@ -7,12 +7,16 @@ class ProfileState {
   final ProfileAnalysisModel? activeProfile;
   final bool isLoading;
   final String? errorMessage;
+  final List<ProfileSearchSuggestion> suggestions;
+  final bool isSuggestionsLoading;
 
   const ProfileState({
     this.history = const [],
     this.activeProfile,
     this.isLoading = false,
     this.errorMessage,
+    this.suggestions = const [],
+    this.isSuggestionsLoading = false,
   });
 
   ProfileState copyWith({
@@ -20,14 +24,19 @@ class ProfileState {
     ProfileAnalysisModel? activeProfile,
     bool? isLoading,
     String? errorMessage,
+    List<ProfileSearchSuggestion>? suggestions,
+    bool? isSuggestionsLoading,
     bool clearActive = false,
     bool clearError = false,
+    bool clearSuggestions = false,
   }) {
     return ProfileState(
       history: history ?? this.history,
       activeProfile: clearActive ? null : (activeProfile ?? this.activeProfile),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      suggestions: clearSuggestions ? const [] : (suggestions ?? this.suggestions),
+      isSuggestionsLoading: isSuggestionsLoading ?? this.isSuggestionsLoading,
     );
   }
 }
@@ -39,7 +48,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
   /// Request profile analysis from backend API.
   Future<void> analyzeProfile(String username) async {
-    state = state.copyWith(isLoading: true, clearError: true, clearActive: true);
+    state = state.copyWith(isLoading: true, clearError: true, clearActive: true, clearSuggestions: true);
     try {
       final cleanUsername = username.trim().replaceAll('@', '');
       final response = await _apiService.post(
@@ -103,9 +112,46 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     }
   }
 
+  /// Fetch search suggestions based on typing query.
+  Future<void> fetchSuggestions(String query) async {
+    final trimmed = query.trim().replaceAll('@', '');
+    if (trimmed.isEmpty) {
+      state = state.copyWith(clearSuggestions: true, isSuggestionsLoading: false);
+      return;
+    }
+
+    state = state.copyWith(isSuggestionsLoading: true);
+    try {
+      final response = await _apiService.get(
+        '/profile/search',
+        queryParams: {'query': trimmed},
+      );
+
+      final list = (response['suggestions'] as List?)
+              ?.map((item) => ProfileSearchSuggestion.fromJson(item as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      state = state.copyWith(
+        isSuggestionsLoading: false,
+        suggestions: list,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isSuggestionsLoading: false,
+        clearSuggestions: true,
+      );
+    }
+  }
+
   /// Clear the active profile dashboard detail.
   void clearActiveProfile() {
     state = state.copyWith(clearActive: true);
+  }
+
+  /// Clear suggestions
+  void clearSuggestions() {
+    state = state.copyWith(clearSuggestions: true);
   }
 
   String _parseError(dynamic error) {

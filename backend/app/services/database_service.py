@@ -346,3 +346,29 @@ class DatabaseService:
             logger.error(f"Failed to delete report {report_id}: {e}")
             return False
 
+    async def search_profiles(self, query: str) -> list[dict]:
+        """Search profiles cached in database."""
+        try:
+            def _execute():
+                return (
+                    self.client.table("profiles")
+                    .select("username, full_name, avatar_url")
+                    .ilike("username", f"%{query}%")
+                    .limit(10)
+                    .execute()
+                )
+            result = await asyncio.to_thread(_execute)
+            return result.data if result.data else []
+        except Exception as e:
+            logger.error(f"Failed to search profiles in DB: {e}")
+            return []
+
+
+
+
+
+
+
+
+
+
